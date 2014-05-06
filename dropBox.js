@@ -1,5 +1,7 @@
 (function() {
+
 require(['$api/models', '$views/list#List'], function(models,List) {
+
 
             // Handle drops
             var dropBox = document.querySelector('#drop-box');
@@ -28,7 +30,6 @@ require(['$api/models', '$views/list#List'], function(models,List) {
 
             dropBox.addEventListener('drop', function(e){
                 e.preventDefault();
-
                
 
                 var drop = models.Playlist.fromURI(e.dataTransfer.getData('text'));
@@ -39,9 +40,8 @@ require(['$api/models', '$views/list#List'], function(models,List) {
 
                 var playlist = models.Playlist.fromURI(drop.uri);
                 var list = List.forPlaylist(playlist);
-                var trackList = [];
+                var urilist = [];
 
-                console.log(trackList);
 				var recent = [];
 				$.getJSON("http://ws.audioscrobbler.com/2.0/?method=user.getRecentTracks&user=feeefles&api_key=10738a09187adc62d9f3e7863e09ce32&format=json&callback=?", 
 					function(data) {
@@ -54,43 +54,61 @@ require(['$api/models', '$views/list#List'], function(models,List) {
 							playlist.tracks.snapshot().done(function(trackSnapshot) {
 								var tracks = trackSnapshot.toArray();
 								tracks.forEach(function(track) {
-									track.load('name', 'artists').done(function(track) {
-										trackList.push(track.name);
-										var artists = track.artists;
-										var artistsList = [];
-										for (var i = 0; i < artists.length; i++) {
-											artistsList.push(artists[i].name);
-										}
-										if ($.inArray(track.name, recent) == -1) {
-											var addedTrackRow = document.createElement('p');
-											addedTrackRow.innerHTML = "Added track: " + artistsList.join(', ') + ' - ' + track.name;
-											document.getElementById('playlist-player').appendChild(addedTrackRow);
-											}
+
+									track.load('name', 'artists').done(
+										function(track) {
+											addTrack(track, recent, urilist);
 										});
+
+									// });
+
 									});
+								displayTracks(urilist);
+										
 								});
 							});
-
+							
 						});
 					// });
 
-
-                
-
-
             }, false);
-		var addTrack = function(track) {
+
+		var displayTracks = function(urilist) {
+			var temp = models.Playlist.createTemporary("tempplaylist_"+new Date().getTime())
+			.done(function(playlist) {
+
+				playlist.load('tracks').done(function(loadedPlaylist) {
+					loadedPlaylist.tracks.clear().done(function () {
+						promises = _.map(urilist, function(uri) {
+							return loadedPlaylist.tracks.add(models.Track.fromURI(uri));
+						});
+						models.Promise.join(promises).done(function() {
+							var list = List.forPlaylist(loadedPlaylist);
+							document.getElementById('playlist-player').appendChild(list.node);
+							list.init();
+						});
+
+					});
+				});
+			});
+		};
+
+		var addTrack = function(track, recent, urilist) {
+
+			//TODO: add artist check too!
 					track.load('name', 'artists').done(function(track) {
 						var artists = track.artists;
 						var artistsList = [];
 						for (var i = 0; i < artists.length; i++) {
 							artistsList.push(artists[i].name);
 							}
-						var index = $.inArray(track.name);
-							if (index == -1) {
-								var addedTrackRow = document.createElement('p');
-								addedTrackRow.innerHTML = "Added track: " + artistsList.join(', ') + ' - ' + track.name;
-								document.getElementById('playlist-player').appendChild(addedTrackRow);
+						var index = $.inArray(track.name, recent);
+						var i2 = $.inArray(track.uri, urilist);
+							if ((index == -1) && (i2 == -1)) {
+								urilist.push(track.uri);
+								// var addedTrackRow = document.createElement('p');
+								// addedTrackRow.innerHTML = "Added track: " + artistsList.join(', ') + ' - ' + track.name;
+								// document.getElementById('playlist-player').appendChild(addedTrackRow);
 						}
 					});
                 };

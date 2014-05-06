@@ -6,13 +6,36 @@
         <link rel="stylesheet" href="$views/css/buttons.css">
         <link rel="stylesheet" href="css/main.css">
         <link rel="stylesheet" href="css/github.css">
+       <link rel="stylesheet" href="css/bootstrap.min.css">
+
+
+        <script src="js/underscore.js"></script>
+        <!-- <script src="js/backbone.js"></script> -->
+
         <script src="js/jquery-min.js"></script>
+        <script src="js/bootstrap.min.js"></script>
+
+        <!-- <script src ="js/backbone-spotify.js"></script> -->
 
     </head>
     <body>
-    <h3> Live Example</h3>
+    <h3>SpotLess</h3>
     <div id = "drop-box">Drop a playlist here</div>
+    <div class="btn-group">
+  <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+    Type of Sorting <span class="caret"></span>
+  </button>
+  <ul class="dropdown-menu" role="menu">
+    <li><a href="#">Genre</a></li>
+    <li><a href="#">Popularity</a></li>
+    <li><a href="#">Artist</a></li>
+    <li class="divider"></li>
+    <li><a href="#">All</a></li>
+  </ul>
+</div>
+
     <div id = "playlist-player"></div>
+
     
 
        
