@@ -17,31 +17,44 @@
 
         <!-- <script src ="js/backbone-spotify.js"></script> -->
 
+        <script>
+            function select() {
+                var select = document.getElementById("selection");
+                var selection = select.options[select.selectedIndex].text;
+                SEL = selection;
+            }
+        </script>
     </head>
     <body>
     <h3>SpotLess</h3>
     <div id = "drop-box">Drop a playlist here</div>
-    <div class="btn-group">
+
+
+   <!--  <div class="btn-group">
   <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
     Type of Sorting <span class="caret"></span>
   </button>
-  <ul class="dropdown-menu" role="menu">
+  <ul class="dropdown-menu" role="menu" onchange="select()">
     <li><a href="#">Genre</a></li>
     <li><a href="#">Popularity</a></li>
     <li><a href="#">Artist</a></li>
     <li class="divider"></li>
     <li><a href="#">All</a></li>
   </ul>
-</div>
+</div> -->
+    <select id = "selection" onchange= "select()">
+        <option value ="all"></option>
+        <option value ="genre">Genre</option>
+        <option value ="pop">Popularity</option>
+    </select>
 
-    <div id = "playlist-player"></div>
+    <div id = "playlist-player"></div> 
 
-    
-
-       
-       
-
+    <script type = "text/javascript">
+        SEL = "All";
+    </script>
     <script src = "/dropBox.js"></script>
+
         <!-- <script src="/js/rainbow-custom.min.js"></script> -->
         <!-- <script src="/js/tutorial.js"></script> -->
     </body>

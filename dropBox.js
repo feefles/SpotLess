@@ -1,6 +1,8 @@
 (function() {
 
+
 require(['$api/models', '$views/list#List'], function(models,List) {
+
 
 
             // Handle drops
@@ -31,6 +33,7 @@ require(['$api/models', '$views/list#List'], function(models,List) {
             dropBox.addEventListener('drop', function(e){
                 e.preventDefault();
                
+                console.log(SEL);
 
                 var drop = models.Playlist.fromURI(e.dataTransfer.getData('text'));
                 this.classList.remove('over');
@@ -39,31 +42,31 @@ require(['$api/models', '$views/list#List'], function(models,List) {
                 this.appendChild(successMessage);
 
                 var playlist = models.Playlist.fromURI(drop.uri);
-                var list = List.forPlaylist(playlist);
                 var urilist = [];
 
 				var recent = [];
-				$.getJSON("http://ws.audioscrobbler.com/2.0/?method=user.getRecentTracks&user=feeefles&api_key=10738a09187adc62d9f3e7863e09ce32&format=json&callback=?", 
-					function(data) {
-						data.recenttracks.track.forEach(function(item) {
-							recent.push(item.name);
-						});
-					}).done(function(data){
-						console.log(recent);
+				var genres = {};
+				getLastFm(recent).done(function(data){
 						playlist.load('tracks').done(function(playlist) {
+							return playlist;})
+						.done(function(playlist) {
 							playlist.tracks.snapshot().done(function(trackSnapshot) {
-								var tracks = trackSnapshot.toArray();
+								return trackSnapshot;})
+								
+							.done(function(trackSnapshot) {
+								tracks = trackSnapshot.toArray();
+	
 								tracks.forEach(function(track) {
 
 									track.load('name', 'artists').done(
 										function(track) {
-											addTrack(track, recent, urilist);
+											addTrack(track, recent, urilist);									
 										});
 
-									// });
 
 									});
-								displayTracks(urilist);
+
+									displayTracks(urilist, tracks);
 										
 								});
 							});
@@ -72,8 +75,16 @@ require(['$api/models', '$views/list#List'], function(models,List) {
 					// });
 
             }, false);
-
-		var displayTracks = function(urilist) {
+	
+		var getLastFm = function(recent) {
+			return $.getJSON("http://ws.audioscrobbler.com/2.0/?method=user.getRecentTracks&user=feeefles&api_key=10738a09187adc62d9f3e7863e09ce32&format=json&callback=?", 
+					function(data) {
+						data.recenttracks.track.forEach(function(item) {
+							recent.push(item.name);
+						});
+					});
+		};
+		var displayTracks = function(urilist, tracks) {
 			var temp = models.Playlist.createTemporary("tempplaylist_"+new Date().getTime())
 			.done(function(playlist) {
 
@@ -83,9 +94,7 @@ require(['$api/models', '$views/list#List'], function(models,List) {
 							return loadedPlaylist.tracks.add(models.Track.fromURI(uri));
 						});
 						models.Promise.join(promises).done(function() {
-							var list = List.forPlaylist(loadedPlaylist);
-							document.getElementById('playlist-player').appendChild(list.node);
-							list.init();
+							sortDisplay(loadedPlaylist, tracks);
 						});
 
 					});
@@ -93,26 +102,102 @@ require(['$api/models', '$views/list#List'], function(models,List) {
 			});
 		};
 
+		var sortDisplay = function(playlist, tracks) {
+			var genreslist = {};
+			var list;
+			var lists;
+			if (SEL == "All") {
+				list = List.forPlaylist(playlist);
+				document.getElementById('playlist-player').appendChild(list.node);
+				list.init();
+			}
+			else if (SEL == "Popularity") {
+				var sorted = playlist.tracks.sort('popularity', 'desc');
+				list = List.forPlaylist(sorted);
+				document.getElementById('playlist-player').appendChild(list.node);
+				list.init();	
+			}
+			else if (SEL == "Genre") {
+				var GenrePromise = function(track) {
+					var promise = new models.Promise();
+					track.load('artists').done(function(track) {
+						var that = this;
+						track.artists[0].load('genres').done(function(artist) {
+							genreslist = updateGenres(artist.genres[0], genreslist, track);
+							promise.setDone();
+						});
+					});
+					return promise;
+				};
+				var gPromises = _.map(tracks, function(track) {
+					var T = models.Track.fromURI(track.uri);
+					return GenrePromise(T);
+				});
+				models.Promise.join(gPromises).done(function() {
+					console.log(genreslist);
+					for (var genre in genreslist) {
+						console.log(genre);
+						var newDiv = document.createElement('div');
+						newDiv.id = genre;
+						newDiv.className = "song-container";
+						document.getElementById('playlist-player').appendChild(newDiv);
+						document.getElementById('playlist-player').appendChild(document.createElement('br'));
+
+						var t = models.Playlist.createTemporary('temp_genre'+genre)
+						.done(function(g_playlist) {
+							return g_playlist;
+						}).done(function(g_playlist) {
+							g_playlist.load('tracks')
+						.done(function(g_playlist) {
+							var lists = [];
+							g_playlist.tracks.clear().done(function() {
+								var promises = _.map(genreslist[genre], function(uri) {
+									console.log(uri);
+									return g_playlist.tracks.add(models.Track.fromURI(uri));
+								});
+								models.Promise.join(promises).done(function() {
+									var l = List.forPlaylist(g_playlist);
+									document.getElementById(genre).appendChild(l.node);
+									l.init();
+									});
+								});
+							});
+						});
+
+					}
+				});
+	
+			}
+		}; 
+
+
 		var addTrack = function(track, recent, urilist) {
 
 			//TODO: add artist check too!
-					track.load('name', 'artists').done(function(track) {
-						var artists = track.artists;
-						var artistsList = [];
-						for (var i = 0; i < artists.length; i++) {
-							artistsList.push(artists[i].name);
-							}
-						var index = $.inArray(track.name, recent);
-						var i2 = $.inArray(track.uri, urilist);
-							if ((index == -1) && (i2 == -1)) {
-								urilist.push(track.uri);
-								// var addedTrackRow = document.createElement('p');
-								// addedTrackRow.innerHTML = "Added track: " + artistsList.join(', ') + ' - ' + track.name;
-								// document.getElementById('playlist-player').appendChild(addedTrackRow);
-						}
-					});
-                };
+			track.load('name', 'artists').done(function(track) {
+				var artists = track.artists;
+				var artistsList = [];
+				for (var i = 0; i < artists.length; i++) {
+					artistsList.push(artists[i].name);
+				}
+				var index = $.inArray(track.name, recent);
+				var i2 = $.inArray(track.uri, urilist);
+				if ((index == -1) && (i2 == -1)) {
+					urilist.push(track.uri);
+				}
+			});
+        };
 
 
+        var updateGenres = function(genre, genreslist, track) {
+        	genre = genre || 'none';
+			if (genreslist.hasOwnProperty(genre)) {
+				genreslist[genre].push(track.uri);
+			}
+			else {
+				genreslist[genre] = [track.uri];
+			}
+			return genreslist;
+		};
     });
 }());

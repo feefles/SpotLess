@@ -67,7 +67,8 @@ ul {margin:0 0 20px;}
 #player {min-height:140px;}
 #player .sp-player {float:left;margin-right:10px;}
 #player .sp-list {width:inherit;max-height:inherit;}
-
+#playlist-player {border: 4px dashed #333; width:100%; padding:10px; overflow:scroll;}
+.song-container {border: 2px dashed #222; width: 80%; padding: 20px;}
 /* Drop Box */
 #drop-box {border:4px dashed #333;width:80%;height:200px;padding:10px}
 #drop-box.over {opacity:0.8;border-color:#74c043;}
