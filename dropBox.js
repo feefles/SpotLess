@@ -33,7 +33,6 @@ require(['$api/models', '$views/list#List'], function(models,List) {
             dropBox.addEventListener('drop', function(e){
                 e.preventDefault();
                
-                console.log(SEL);
 
                 var drop = models.Playlist.fromURI(e.dataTransfer.getData('text'));
                 this.classList.remove('over');
@@ -47,6 +46,7 @@ require(['$api/models', '$views/list#List'], function(models,List) {
 				var recent = [];
 				var genres = {};
 				getLastFm(recent).done(function(data){
+					console.log(recent)
 						playlist.load('tracks').done(function(playlist) {
 							return playlist;})
 						.done(function(playlist) {
@@ -55,6 +55,7 @@ require(['$api/models', '$views/list#List'], function(models,List) {
 								
 							.done(function(trackSnapshot) {
 								tracks = trackSnapshot.toArray();
+
 	
 								tracks.forEach(function(track) {
 
@@ -77,7 +78,7 @@ require(['$api/models', '$views/list#List'], function(models,List) {
             }, false);
 	
 		var getLastFm = function(recent) {
-			return $.getJSON("http://ws.audioscrobbler.com/2.0/?method=user.getRecentTracks&user=feeefles&api_key=10738a09187adc62d9f3e7863e09ce32&format=json&callback=?", 
+			return $.getJSON("http://ws.audioscrobbler.com/2.0/?method=user.getRecentTracks&user=feeefles&api_key=10738a09187adc62d9f3e7863e09ce32&format=json&limit=200", 
 					function(data) {
 						data.recenttracks.track.forEach(function(item) {
 							recent.push(item.name);
@@ -105,7 +106,7 @@ require(['$api/models', '$views/list#List'], function(models,List) {
 		var sortDisplay = function(playlist, tracks) {
 			var genreslist = {};
 			var list;
-			var lists;
+			var lists = [];
 			if (SEL == "All") {
 				list = List.forPlaylist(playlist);
 				document.getElementById('playlist-player').appendChild(list.node);
@@ -133,38 +134,48 @@ require(['$api/models', '$views/list#List'], function(models,List) {
 					var T = models.Track.fromURI(track.uri);
 					return GenrePromise(T);
 				});
-				models.Promise.join(gPromises).done(function() {
-					console.log(genreslist);
-					for (var genre in genreslist) {
-						console.log(genre);
-						var newDiv = document.createElement('div');
-						newDiv.id = genre;
-						newDiv.className = "song-container";
-						document.getElementById('playlist-player').appendChild(newDiv);
-						document.getElementById('playlist-player').appendChild(document.createElement('br'));
+				var getLists = function(genre) {
+					var promise2 = new models.Promise();					
+					var newDiv = document.createElement('div');
+					newDiv.id = genre;
+					newDiv.className = "song-container";
+					document.getElementById('playlist-player').appendChild(newDiv);
+					document.getElementById('playlist-player').appendChild(document.createElement('br'));
 
-						var t = models.Playlist.createTemporary('temp_genre'+genre)
-						.done(function(g_playlist) {
-							return g_playlist;
-						}).done(function(g_playlist) {
-							g_playlist.load('tracks')
-						.done(function(g_playlist) {
-							var lists = [];
-							g_playlist.tracks.clear().done(function() {
-								var promises = _.map(genreslist[genre], function(uri) {
-									console.log(uri);
-									return g_playlist.tracks.add(models.Track.fromURI(uri));
-								});
-								models.Promise.join(promises).done(function() {
-									var l = List.forPlaylist(g_playlist);
-									document.getElementById(genre).appendChild(l.node);
-									l.init();
-									});
+					var t = models.Playlist.createTemporary('temp_genre'+genre)
+					.done(function(g_playlist) {
+						return g_playlist;
+					}).done(function(g_playlist) {
+						g_playlist.load('tracks')
+					.done(function(g_playlist) {
+						g_playlist.tracks.clear().done(function() {
+
+							var promises = _.map(genreslist[genre], function(uri) {
+								return g_playlist.tracks.add(models.Track.fromURI(uri));
+							});
+							models.Promise.join(promises).done(function() {
+								var l = List.forPlaylist(g_playlist);
+								document.getElementById(genre).appendChild(l.node);
+								lists.push(l);
+								promise2.setDone();
 								});
 							});
 						});
+					});
+					return promise2;
+					
+				};
 
-					}
+				models.Promise.join(gPromises).done(function() {
+
+					var lPromises = _.map(genreslist, function(songs, genre) {
+							return getLists(genre);
+					}); 
+					models.Promise.join(lPromises).done(function() {
+						lists.forEach(function(i) {
+							i.init();
+						});
+					});
 				});
 	
 			}
